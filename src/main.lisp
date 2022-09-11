@@ -49,14 +49,78 @@
   "Generate all permutations of numbers 1..n.
 
 Theoretical maximum N 64."
+  (let ((xs (iter (for i from 0 below n) (collecting i :result-type vector))))
+    (iter
+      (when (first-iteration-p)
+        (collecting (copy-seq xs)))
+      (for pivot = (iter
+                     (for j from (1- n) downto 0)
+                     (for x = (aref xs j))
+                     (for y previous x initially most-negative-fixnum)
+                     (finding j such-that (> y x))))
+      (when (null pivot)
+        (finish))
+      (for x = (aref xs pivot))
+      (for g-pivot = (iter
+                       (for j from (1- n) downto 0)
+                       (for y = (aref xs j))
+                       (finding j such-that (> y x))))
+      (rotatef (aref xs pivot)
+               (aref xs g-pivot))
+      (iter
+        (for i from (1+ pivot) below n)
+        (for j from (1- n) downto 0)
+        (when (>= i j)
+          (finish))
+        (rotatef (aref xs i)
+                 (aref xs j)))
+      (collecting (copy-seq xs)))))
+
+(defun permutations-recursive (n)
+  "Compute the permutations of 1..N using consing."
+  (let ((lookup (make-hash-table :test #'eq)))
+    (labels ((recur (rem)
+               (cond
+                 ((= 0 rem) '(()))
+                 (#1=(gethash rem lookup) #1#)
+                 (t (setf #1#
+                          (iter outer
+                            (for i from 0 below n)
+                            (when (> (logand (ash 1 i) rem) 0)
+                              (let ((subresults (recur (logand (lognot (ash 1 i))
+                                                               rem))))
+                                (iter
+                                  (for subresult in subresults)
+                                  (in outer (collecting (cons i subresult))))))))))))
+      (recur (1- (ash 1 n)))
+      (gethash (1- (ash 1 n)) lookup))))
+
+(defun print-permutations (n)
+  "Generate all permutations of numbers 1..n.
+
+Theoretical maximum N 64."
   (labels
       ((permutations-iter (rem acc)
          (cond
-           ((= 0 rem) (list acc))
+           ((= 0 rem) (print acc))
            (t (iter
-                (for i from 0 below 64)
+                (for i from 0 below n)
                 (when (> (logand (ash 1 i) rem) 0)
-                  (appending
-                   (permutations-iter (logand rem (lognot (ash 1 i)))
-                                      (cons i acc)))))))))
+                  (permutations-iter (logand rem (lognot (ash 1 i)))
+                                     (cons i acc))))))))
     (permutations-iter (1- (ash 1 n)) nil)))
+
+;; 7. Generate all possible subsets of 1..20
+
+(defun subsets (n)
+  "Generate all subsets in 1..N."
+  (labels
+      ((recur (xs)
+         (if (null xs)
+             '(())
+             (let ((subresults (recur (cdr xs))))
+               (iter
+                 (for subresult in subresults)
+                 (collecting (cons (car xs) subresult))
+                 (collecting subresult))))))
+    (recur (iter (for i from 0 below n) (collecting i)))))
