@@ -49,17 +49,14 @@
   "Generate all permutations of numbers 1..n.
 
 Theoretical maximum N 64."
-  (let ((searched (make-hash-table :test #'eq)))
-    (labels
-        ((permutations-iter (rem acc)
-           (cond
-             (#1=(gethash rem searched) #1#)
-             ((= 0 rem) (list acc))
-             (t (setf #1#
-                      (iter
-                        (for i from 0 below 64)
-                        (when (> (logand (ash 1 i) rem) 0)
-                          (appending
-                           (permutations-iter (logand rem (lognot (ash 1 i)))
-                                              (cons i acc))))))))))
-      (permutations-iter (1- (ash 1 n)) nil))))
+  (labels
+      ((permutations-iter (rem acc)
+         (cond
+           ((= 0 rem) (list acc))
+           (t (iter
+                (for i from 0 below 64)
+                (when (> (logand (ash 1 i) rem) 0)
+                  (appending
+                   (permutations-iter (logand rem (lognot (ash 1 i)))
+                                      (cons i acc)))))))))
+    (permutations-iter (1- (ash 1 n)) nil)))
