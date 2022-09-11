@@ -2,7 +2,7 @@
   :version "0.1.0"
   :author ""
   :license ""
-  :depends-on (:cl-ppcre)
+  :depends-on (:cl-ppcre :iterate)
   :components ((:module "src"
                 :components
                 ((:file "main"))))
