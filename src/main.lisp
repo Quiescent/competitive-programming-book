@@ -110,7 +110,7 @@ Theoretical maximum N 64."
                                      (cons i acc))))))))
     (permutations-iter (1- (ash 1 n)) nil)))
 
-;; 7. Generate all possible subsets of 1..20
+;; ## 7. Generate all possible subsets of 1..20
 
 (defun subsets (n)
   "Generate all subsets in 1..N."
@@ -124,3 +124,11 @@ Theoretical maximum N 64."
                  (collecting (cons (car xs) subresult))
                  (collecting subresult))))))
     (recur (iter (for i from 0 below n) (collecting i)))))
+
+;; # Bit mask
+
+;; Large
+(make-array (list 100) :element-type 'bit :initial-element 1)
+;; OR fixnum
+(x (1- (ash 1 100)))
+
