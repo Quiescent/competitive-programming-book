@@ -132,3 +132,31 @@ Theoretical maximum N 64."
 ;; OR fixnum
 (x (1- (ash 1 100)))
 
+;; # Chapter 3: 8 queuens
+
+(defvar zero-to-7 #(0 1 2 3 4 5 6 7))
+
+(defun place (board x y)
+  "Attempt to place a queen on BOARD at X, Y."
+  (when (not (some (lambda (other-x other-y)
+                     (and other-y
+                          (or (= (abs (- other-x x))
+                                 (abs (- other-y y)))
+                              (= other-x x)
+                              (= other-y y))))
+                   zero-to-7 board))
+    (setf (aref board x) y)))
+
+(defun eight-queens ()
+  "Solve the eight queens problem."
+  (let ((board (make-array (list 8) :initial-element nil)))
+    (labels ((recur (x y)
+               (cond
+                 ((= x 8)           board)
+                 ((= y 8)           (progn
+                                      (let ((prev-y #1=(aref board (1- x))))
+                                        (setf #1# nil)
+                                        (recur (1- x) (1+ prev-y)))))
+                 ((place board x y) (recur (1+ x) 0))
+                 (t                 (recur x      (1+ y))))))
+      (recur 0 0))))
