@@ -130,6 +130,7 @@ Theoretical maximum N 64."
 ;; Large
 (make-array (list 100) :element-type 'bit :initial-element 1)
 ;; OR fixnum
+#+nil
 (x (1- (ash 1 100)))
 
 ;; # Chapter 3: 8 queuens
