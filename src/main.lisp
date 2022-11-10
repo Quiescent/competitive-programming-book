@@ -161,3 +161,33 @@ Theoretical maximum N 64."
                  ((place board x y) (recur (1+ x) 0))
                  (t                 (recur x      (1+ y))))))
       (recur 0 0))))
+
+;; # Chapter 3: Longest Increasing Subsequence
+
+(defun longest-increasing-subsequence (xs)
+  "Find the longest increasing subsequence in XS."
+  (declare (type simple-array xs))
+  (let ((cache (make-array (list (length xs))
+                           :initial-element -1
+                           :element-type 'fixnum)))
+    (labels ((recur (i)
+               (let ((cached #1=(aref cache i)))
+                 (if (/= cached -1)
+                     cached
+                     (setf #1#
+                           (if (= 0 i)
+                               1
+                               (do ((current (aref xs i))
+                                    (j (1- i) (1- j))
+                                    (l 1))
+                                   ((< j 0) l)
+                                 (let ((x (aref xs j)))
+                                   (when (< x current)
+                                     (setf l (max l (1+ (recur j)))))))))))))
+      (do ((i 0 (1+ i))
+           (l 1))
+          ((>= i (length xs)) l)
+        (setf l (max l (recur i)))))))
+
+#+nil
+(longest-increasing-subsequence #(-7 10 9 2 3 8 8 1))
