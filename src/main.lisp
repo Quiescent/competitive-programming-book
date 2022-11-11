@@ -280,3 +280,35 @@ Theoretical maximum N 64."
                                            (-4 1 -4 1)
                                            (-1 8 0 -2)))))
   (max-sum-any-submatrix xss))
+
+;; # Chapter 3 Knapsack problem
+
+(defun knapsack (values weights capacity)
+  "Produce the maximum value that can fit into a knapsack.
+
+You may place items that have corresponding indices from VALUES &
+WEIGHTS into the bag, which has a total carrying CAPACITY."
+  (let ((cache (make-array (list (length values) (1+ capacity))
+                           :initial-element -1)))
+    (labels ((recur (i remaining)
+               (if (>= i (length values))
+                   0
+                   (let ((cached #1=(aref cache i remaining)))
+                     (if (/= -1 cached)
+                         cached
+                         (setf (aref cache i remaining)
+                               (let ((current-value (aref values i))
+                                     (current-weight (aref weights i)))
+                                 (max (if (<= current-weight remaining)
+                                          (+ current-value
+                                             (recur (1+ i)
+                                                    (- remaining current-weight)))
+                                          0)
+                                      (recur (1+ i) remaining)))))))))
+      (recur 0 capacity))))
+
+#+nil
+(let ((values (make-array (list 3) :initial-contents '(100 70 50)))
+      (weights (make-array (list 3) :initial-contents '(10 5 7)))
+      (capacity 12))
+  (knapsack values weights capacity))
