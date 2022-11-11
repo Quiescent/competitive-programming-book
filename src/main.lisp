@@ -191,3 +191,52 @@ Theoretical maximum N 64."
 
 #+nil
 (longest-increasing-subsequence #(-7 10 9 2 3 8 8 1))
+
+;; # Chapter 3: Max Sum Matrix
+
+(defun max-sum-matrix (xss dim-x dim-y)
+  "Compute the maximum sum of a submatrix in XSS with dimensions (DIM-X DIM-Y).."
+  (destructuring-bind (x y) (array-dimensions xss)
+    (do ((i 0 (1+ i)))
+        ((>= i x))
+      (do ((j 0 (1+ j)))
+          ((>= j y))
+        (incf (aref xss i j)
+              (+ (if (> i 0) (aref xss (1- i) j)      0)
+                 (if (> j 0) (aref xss i      (1- j)) 0)
+                 (if (and (> i 0)
+                          (> j 0))
+                     (- 0 (aref xss (1- i) (1- j)))
+                     0)))))
+    (format t "xss: ~a~%" xss)
+    (do ((i 0 (1+ i))
+         (dx (1- dim-x))
+         (max-sum most-negative-fixnum))
+        ((>= i (- x dx)) max-sum)
+      (format t "i: ~a~%" i)
+      (do ((j 0 (1+ j))
+           (dy (1- dim-y)))
+          ((>= j (- y dy)))
+        (format t "j: ~a~%" j)
+        (let ((current-sum (+ (aref xss (+ i dx) (+ j dy))
+                              (- 0 (if (> j 0) (aref xss (+ i dx) (1- j))   0))
+                              (- 0 (if (> i 0) (aref xss (1- i)   (+ j dy)) 0))
+                              (if (and (> i 0)
+                                       (> j 0))
+                                  (- 0 (aref xss (1- i) (1- j)))
+                                  0))))
+          (format t "current-sum: ~a~%" current-sum)
+          (setf max-sum (max current-sum max-sum)))))))
+
+#+nil
+(let ((xss (make-array (list 5 5)
+                       :initial-element 1)))
+  (max-sum-matrix xss 2))
+
+#+nil
+(let ((xss (make-array (list 4 4)
+                       :initial-contents '((0 -2 -7 0)
+                                           (9 2 -6 2)
+                                           (-4 1 -4 1)
+                                           (-1 8 0 -2)))))
+  (max-sum-matrix xss 2))
