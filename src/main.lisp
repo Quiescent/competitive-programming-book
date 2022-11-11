@@ -296,7 +296,7 @@ WEIGHTS into the bag, which has a total carrying CAPACITY."
                    (let ((cached #1=(aref cache i remaining)))
                      (if (/= -1 cached)
                          cached
-                         (setf (aref cache i remaining)
+                         (setf #1#
                                (let ((current-value (aref values i))
                                      (current-weight (aref weights i)))
                                  (max (if (<= current-weight remaining)
@@ -312,3 +312,26 @@ WEIGHTS into the bag, which has a total carrying CAPACITY."
       (weights (make-array (list 3) :initial-contents '(10 5 7)))
       (capacity 12))
   (knapsack values weights capacity))
+
+;; # Chapter 3: Coin change
+
+(defun min-coins (denominations value)
+  "Produce the smallest number of coins of DENOMINATIONS to make VALUE."
+  (let ((cache (make-array (list (length denominations) (1+ value))
+                           :initial-element -1)))
+    (labels ((recur (i remaining)
+               (if (>= i (length denominations))
+                   (if (= remaining 0) 0 most-positive-fixnum)
+                   (let ((cached #1=(aref cache i remaining)))
+                     (if (/= -1 cached)
+                         cached
+                         (setf #1#
+                               (let ((current-value (aref denominations i)))
+                                 (if (<= current-value remaining)
+                                     (min (1+ (recur 0 (- remaining current-value)))
+                                          (recur (1+ i) remaining))
+                                     (recur (1+ i) remaining)))))))))
+      (recur 0 value))))
+
+#+nil
+(min-coins #(1 5) 20)
