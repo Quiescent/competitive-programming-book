@@ -335,3 +335,34 @@ WEIGHTS into the bag, which has a total carrying CAPACITY."
 
 #+nil
 (min-coins #(1 5) 20)
+
+;; # Chapter 3: TSP
+
+;; Weird dbp, mask-field and byte functions...
+(defun tsp (adjacency-matrix)
+  "Compute the shortest tour of all vertices in ADJACENCY-MATRIX."
+  (let* ((start        0)
+         (count        (array-dimension adjacency-matrix 0))
+         (all-explored (1- (ash 1 count))))
+    (declare (type (unsigned-byte 32) all-explored))
+    (labels ((recur (i explored)
+               (declare (type (unsigned-byte 32) explored))
+               (format t "i: ~a, explored: ~b~%" i explored)
+               (if (= explored all-explored)
+                   (aref adjacency-matrix i start)
+                   (do ((j 0 (1+ j))
+                        (min-d most-positive-fixnum))
+                       ((>= j count) min-d)
+                     (when (and (/= j i)
+                                (= 0 (logand (ash 1 j) explored)))
+                       (setf min-d (min min-d
+                                        (recur j (dpb 1 (byte 1 j) explored)))))))))
+      (recur start 1))))
+
+#+nil
+(let ((matrix (make-array (list 4 4)
+                          :initial-contents '((0 20 42 35)
+                                              (20 0 30 34)
+                                              (42 30 0 12)
+                                              (35 34 12 0)))))
+  (tsp matrix))
