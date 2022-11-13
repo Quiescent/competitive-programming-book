@@ -338,26 +338,59 @@ WEIGHTS into the bag, which has a total carrying CAPACITY."
 
 ;; # Chapter 3: TSP
 
-;; Weird dbp, mask-field and byte functions...
+(defun set-bit (bit-array bit)
+  "Sets the bit at position BIT in BIT-ARRAY."
+  (let ((new (copy-seq bit-array)))
+    (setf (sbit new bit) 1)
+    new))
+
+(defun unset-bit (bit-array bit)
+  "Unsets the bit at position BIT in BIT-ARRAY."
+  (let ((new (copy-seq bit-array)))
+    (setf (sbit new bit) 0)
+    new))
+
+;; Exploring some bit twiddling while solving the TSP.
+;;
+;; I discovered the functions:
+;;  - ldp,
+;;  - ldp-test,
+;;  - mask-field, &
+;;  - byte.
+;; These functions work on fixnums to setf, test and extract regions
+;; on bits from the number(!)
+;;
+;; I also discovered that bit-vectors have a rich API that includes
+;; operations prefixed `bit'.
+;;
+;; Bit vectors are constructed with `make-array' and a type of `bit'.
+;; They're awesome, but need to be allocated on the heap and can't be
+;; used as a key in an array or hash table when you're doing dp.  So,
+;; they'll work well for the non-DP TSP below, but not as well for the
+;; DP TSP that follows, because you'd have to keep converting them to
+;; numbers to index into the cache.
 (defun tsp (adjacency-matrix)
   "Compute the shortest tour of all vertices in ADJACENCY-MATRIX."
   (let* ((start        0)
          (count        (array-dimension adjacency-matrix 0))
-         (all-explored (1- (ash 1 count))))
-    (declare (type (unsigned-byte 32) all-explored))
+         (all-explored (make-array (list count)
+                                   :element-type 'bit
+                                   :initial-element 1))
+         (initial      (make-array (list count)
+                                   :element-type 'bit
+                                   :initial-element 0)))
     (labels ((recur (i explored)
-               (declare (type (unsigned-byte 32) explored))
-               (format t "i: ~a, explored: ~b~%" i explored)
-               (if (= explored all-explored)
+               (if (equal explored all-explored)
                    (aref adjacency-matrix i start)
                    (do ((j 0 (1+ j))
                         (min-d most-positive-fixnum))
                        ((>= j count) min-d)
                      (when (and (/= j i)
-                                (= 0 (logand (ash 1 j) explored)))
+                                (equal 0 (sbit explored j)))
                        (setf min-d (min min-d
-                                        (recur j (dpb 1 (byte 1 j) explored)))))))))
-      (recur start 1))))
+                                        (+ (aref adjacency-matrix i j)
+                                           (recur j (set-bit explored j))))))))))
+      (recur start (set-bit initial 0)))))
 
 #+nil
 (let ((matrix (make-array (list 4 4)
@@ -366,3 +399,116 @@ WEIGHTS into the bag, which has a total carrying CAPACITY."
                                               (42 30 0 12)
                                               (35 34 12 0)))))
   (tsp matrix))
+
+#+nil
+(let ((matrix (make-array (list 4 4)
+                          :initial-contents '((0 20 42 35)
+                                              (20 0 30 34)
+                                              (42 30 0 12)
+                                              (35 34 12 0)))))
+  (tsp-deep-dp matrix))
+
+(defun tsp-fixnum (adjacency-matrix)
+  "Find length of shortest tour through graph represented by ADJACENCY-MATRIX.
+
+ASSUME: that ADJACENCY-MATRIX is square!"
+  (let* ((count (array-dimension adjacency-matrix 0))
+         (all-explored (1- (expt 2 count)))
+         (start 0))
+    (labels ((recur (i visited)
+               (if (= visited all-explored)
+                   (aref adjacency-matrix i start)
+                   (do ((j 0 (1+ j))
+                        (min-d most-positive-fixnum))
+                       ((>= j count) min-d)
+                     (when (and (/= j i)
+                                (= 0 (logand (ash 1 j) visited)))
+                       (setf min-d (min min-d
+                                        (+ (aref adjacency-matrix i j)
+                                           (recur j (logior visited (ash 1 j)))))))))))
+      (recur 0 1))))
+
+#+nil
+(let ((matrix (make-array (list 4 4)
+                          :initial-contents '((0 20 42 35)
+                                              (20 0 30 34)
+                                              (42 30 0 12)
+                                              (35 34 12 0)))))
+  (tsp-fixnum matrix))
+
+(defun tsp-dp (adjacency-matrix)
+  "Find length of shortest tour through graph represented by ADJACENCY-MATRIX.
+
+ASSUME: that ADJACENCY-MATRIX is square!"
+  (let* ((count (array-dimension adjacency-matrix 0))
+         (all-explored (1- (expt 2 count)))
+         (start 0)
+         (cache (make-array (list count all-explored)
+                            :initial-element -1)))
+    (labels ((recur (i visited)
+               (if (= visited all-explored)
+                   (aref adjacency-matrix i start)
+                   (let ((cached #1=(aref cache i visited)))
+                     (if (/= -1 cached)
+                         cached
+                         (setf #1#
+                               (do ((j 0 (1+ j))
+                                    (min-d most-positive-fixnum))
+                                   ((>= j count) min-d)
+                                 (when (and (/= j i)
+                                            (= 0 (logand (ash 1 j) visited)))
+                                   (setf min-d (min min-d
+                                                    (+ (aref adjacency-matrix i j)
+                                                       (recur j (logior visited (ash 1 j))))))))))))))
+      (recur 0 1))))
+
+;; This one is worse despite the optimisation!
+(defun tsp-deep-dp (adjacency-matrix)
+  "Compute the shortest tour of all vertices in ADJACENCY-MATRIX."
+  (declare (optimize (speed 3) (debug 0))
+           (type simple-array adjacency-matrix))
+  (let* ((count (the fixnum (array-dimension adjacency-matrix 0)))
+         (all-explored (the fixnum (1- (expt 2 count))))
+         (start 0)
+         (cache        (make-array (list count count all-explored)
+                                   :initial-element -1
+                                   :element-type 'fixnum)))
+    (labels ((recur (i j explored)
+               (declare (type fixnum i j))
+               (cond
+                 ((equal explored all-explored) (aref adjacency-matrix i start))
+                 ((>= j count)                  most-positive-fixnum)
+                 (t (let ((cached #2=(aref cache i j explored)))
+                      (if (/= -1 cached)
+                          cached
+                          (setf #2#
+                                (if (and (/= j i) (= 0 (logand (ash 1 j) explored)))
+                                    (min (+ (the fixnum (aref adjacency-matrix i j))
+                                            (the fixnum (recur j 0 (the fixnum (logior explored (the fixnum (ash 1 j)))))))
+                                         (the fixnum #1=(recur i (1+ j) explored)))
+                                    #1#))))))))
+      (recur start 0 1))))
+
+#+nil
+(let ((matrix (make-array (list 4 4)
+                          :initial-contents '((0 20 42 35)
+                                              (20 0 30 34)
+                                              (42 30 0 12)
+                                              (35 34 12 0)))))
+  (tsp-deep-dp matrix))
+
+#+nil
+(let ((matrix (make-array (list 9 9)
+                          :initial-contents '((0 20 42 35 10 32 50 22 55)
+                                              (20 0 30 34 32 11 60 32 44)
+                                              (42 30 0 12 18 20 72 18 22)
+                                              (35 34 12 0 19 19 52 33 17)
+                                              (10 32 18 19 0 19 33 20 37)
+                                              (32 11 20 19 19 0 45 19 29)
+                                              (50 60 72 52 33 45 0 44 27)
+                                              (22 32 18 33 20 19 44 0 41)
+                                              (55 44 22 17 37 29 27 41 0)))))
+  (time (loop for i from 0 below 100 do (print (tsp matrix))))
+  (time (loop for i from 0 below 100 do (print (tsp-fixnum matrix))))
+  (time (loop for i from 0 below 100 do (print (tsp-dp matrix))))
+  (time (loop for i from 0 below 100 do (print (tsp-deep-dp matrix)))))
